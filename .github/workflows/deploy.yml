@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build masks
+        run: npx tsx app/masks/build.ts
+
       - name: Build static export
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -36,7 +39,9 @@ jobs:
           DEFAULT_MODEL: ${{ secrets.DEFAULT_MODEL }}
           HIDE_USER_API_KEY: ${{ secrets.HIDE_USER_API_KEY }}
           CODE: ${{ secrets.CODE }}
-        run: npm run export
+          BUILD_MODE: export
+          BUILD_APP: 1
+        run: npx next build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
