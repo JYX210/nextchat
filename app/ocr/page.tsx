@@ -114,7 +114,7 @@ export default function OcrPage() {
   return (
     <div style={s.container}>
       <h1 style={s.title}>OCR 识图</h1>
-      <p style={s.sub}>拍照或选图，AI 精准识别文字</p>
+      <p style={s.sub}>拍照或选图，DeepSeek-OCR 精准识别</p>
 
       <div style={s.btns}>
         <button onClick={startCamera} style={s.btn}>拍照</button>
