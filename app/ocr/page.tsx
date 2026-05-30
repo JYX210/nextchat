@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { ocrImage } from "./actions";
 
 export default function OcrPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -86,14 +87,9 @@ export default function OcrPage() {
     try {
       const small = await resizeImage(imageUrl, 1200);
       setProgress("识别中...");
-      const resp = await fetch("/api/ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: small }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        setError(data.error || "OCR 失败");
+      const data = await ocrImage(small);
+      if (data.error) {
+        setError(data.error);
         setProgress("");
       } else if (data.text) {
         setOcrText(data.text);

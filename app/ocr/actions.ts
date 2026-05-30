@@ -1,28 +1,15 @@
+"use server";
+
 import { getServerSideConfig } from "@/app/config/server";
 
-export const runtime = "edge";
-
-export async function GET() {
-  return Response.json({ status: "ok" });
-}
-
-export async function POST(req: Request) {
+export async function ocrImage(image: string): Promise<{ text?: string; error?: string }> {
   try {
-    const { image } = await req.json();
-    if (!image) {
-      return Response.json({ error: "no image" }, { status: 400 });
-    }
-
     const config = getServerSideConfig();
     const apiKey = config.siliconFlowApiKey;
     if (!apiKey) {
-      return Response.json(
-        { error: "SiliconFlow API key not configured" },
-        { status: 500 }
-      );
+      return { error: "SiliconFlow API key not configured" };
     }
 
-    // Strip data URL prefix if present, keep just base64
     const base64 = image.replace(/^data:image\/\w+;base64,/, "");
 
     const resp = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
@@ -51,17 +38,13 @@ export async function POST(req: Request) {
 
     if (!resp.ok) {
       const err = await resp.text();
-      return Response.json({ error: err }, { status: resp.status });
+      return { error: err };
     }
 
     const data = await resp.json();
     const text = data.choices?.[0]?.message?.content?.trim() || "";
-
-    return Response.json({ text });
+    return { text };
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : "OCR failed" },
-      { status: 500 }
-    );
+    return { error: e instanceof Error ? e.message : "OCR failed" };
   }
 }
