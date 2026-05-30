@@ -2,6 +2,10 @@ import { getServerSideConfig } from "@/app/config/server";
 
 export const runtime = "edge";
 
+export async function GET() {
+  return Response.json({ status: "ok" });
+}
+
 export async function POST(req: Request) {
   try {
     const { image } = await req.json();
