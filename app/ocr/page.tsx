@@ -1,18 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-
-declare global {
-  interface Window {
-    Tesseract?: {
-      recognize: (
-        image: string,
-        langs: string,
-        options?: { logger?: (m: { status: string; progress: number }) => void }
-      ) => Promise<{ data: { text: string } }>;
-    };
-  }
-}
+import { useState, useRef, useCallback } from "react";
 
 export default function OcrPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -26,15 +14,6 @@ export default function OcrPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
-
-  useEffect(() => {
-    if (document.querySelector("#tesseract-script")) return;
-    const script = document.createElement("script");
-    script.id = "tesseract-script";
-    script.src =
-      "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    document.body.appendChild(script);
-  }, []);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -77,14 +56,13 @@ export default function OcrPage() {
     reader.readAsDataURL(file);
   };
 
-  // Resize image to a reasonable size for OCR (prevents freeze/garbled text)
   const resizeImage = (src: string, maxDim = 1200): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
         if (width <= maxDim && height <= maxDim) {
-          resolve(src); // already small enough
+          resolve(src);
           return;
         }
         const ratio = Math.min(maxDim / width, maxDim / height);
@@ -102,26 +80,23 @@ export default function OcrPage() {
 
   const runOcr = async () => {
     if (!imageUrl) return;
-    if (!window.Tesseract) {
-      setError("OCR 引擎加载中，等几秒再试");
-      return;
-    }
     setLoading(true);
     setProgress("图片处理中...");
     setError("");
     try {
-      // Resize first to avoid freezing on large images
       const small = await resizeImage(imageUrl, 1200);
       setProgress("识别中...");
-      const result = await window.Tesseract!.recognize(small, "chi_sim+eng", {
-        logger: (m) => {
-          if (m.status === "recognizing text")
-            setProgress(`识别中... ${Math.round(m.progress * 100)}%`);
-        },
+      const resp = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: small }),
       });
-      const text = result.data.text?.trim() || "";
-      if (text) {
-        setOcrText(text);
+      const data = await resp.json();
+      if (!resp.ok) {
+        setError(data.error || "OCR 失败");
+        setProgress("");
+      } else if (data.text) {
+        setOcrText(data.text);
         setProgress("");
       } else {
         setError("未识别到文字，请确保图片清晰");
@@ -143,7 +118,7 @@ export default function OcrPage() {
   return (
     <div style={s.container}>
       <h1 style={s.title}>OCR 识图</h1>
-      <p style={s.sub}>拍照或选图，提取文字后复制到聊天</p>
+      <p style={s.sub}>拍照或选图，AI 精准识别文字</p>
 
       <div style={s.btns}>
         <button onClick={startCamera} style={s.btn}>拍照</button>
