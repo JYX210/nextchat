@@ -14,6 +14,7 @@ export default function OcrPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -22,6 +23,7 @@ export default function OcrPage() {
       streamRef.current = null;
     }
     setCameraOn(false);
+    setCameraReady(false);
   }, []);
 
   const startCamera = async () => {
@@ -31,7 +33,16 @@ export default function OcrPage() {
         video: { facingMode: "environment" },
       });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        // Wait for video metadata to load before allowing capture
+        await new Promise<void>((resolve) => {
+          videoRef.current!.onloadedmetadata = () => {
+            setCameraReady(true);
+            resolve();
+          };
+        });
+      }
       setCameraOn(true);
     } catch {
       setError("无法打开相机，请在手机浏览器中打开并授权");
@@ -41,7 +52,7 @@ export default function OcrPage() {
   const capturePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!video || !canvas || !video.videoWidth) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0);
@@ -119,7 +130,7 @@ export default function OcrPage() {
       <div style={s.btns}>
         <button onClick={startCamera} style={s.btn}>拍照</button>
         <button onClick={() => fileRef.current?.click()} style={s.btn}>选图片</button>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment"
+        <input ref={fileRef} type="file" accept="image/*"
           onChange={handleFile} style={{ display: "none" }} />
       </div>
 
@@ -128,7 +139,7 @@ export default function OcrPage() {
           <video ref={videoRef} autoPlay playsInline style={s.video} />
           <canvas ref={canvasRef} style={{ display: "none" }} />
           <div style={s.camBtns}>
-            <button onClick={capturePhoto} style={s.btn}>拍摄</button>
+            <button onClick={capturePhoto} style={s.btn} disabled={!cameraReady}>拍摄</button>
             <button onClick={stopCamera} style={s.btn2}>取消</button>
           </div>
         </div>
