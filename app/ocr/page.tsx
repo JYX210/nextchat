@@ -77,6 +77,29 @@ export default function OcrPage() {
     reader.readAsDataURL(file);
   };
 
+  // Resize image to a reasonable size for OCR (prevents freeze/garbled text)
+  const resizeImage = (src: string, maxDim = 1200): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim) {
+          resolve(src); // already small enough
+          return;
+        }
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        const c = document.createElement("canvas");
+        c.width = width;
+        c.height = height;
+        c.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = src;
+    });
+  };
+
   const runOcr = async () => {
     if (!imageUrl) return;
     if (!window.Tesseract) {
@@ -84,10 +107,13 @@ export default function OcrPage() {
       return;
     }
     setLoading(true);
-    setProgress("识别中...");
+    setProgress("图片处理中...");
     setError("");
     try {
-      const result = await window.Tesseract!.recognize(imageUrl, "chi_sim+eng", {
+      // Resize first to avoid freezing on large images
+      const small = await resizeImage(imageUrl, 1200);
+      setProgress("识别中...");
+      const result = await window.Tesseract!.recognize(small, "chi_sim+eng", {
         logger: (m) => {
           if (m.status === "recognizing text")
             setProgress(`识别中... ${Math.round(m.progress * 100)}%`);
